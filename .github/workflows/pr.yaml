@@ -1,0 +1,89 @@
+name: PR
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - ready_for_review
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+jobs:
+  lint:
+    name: "Lint"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: latest
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.14
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Ruff format check
+        run: uv run ruff format --check
+
+      - name: Ruff lint
+        run: uv run ruff check
+
+      - name: Mypy
+        run: uv run mypy .
+
+      - name: Ty
+        run: uv run ty check
+
+      - name: Import linter
+        run: uv run lint-imports
+
+  test:
+    name: "Test"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: latest
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.14
+
+      - name: Install dependencies
+        run: uv sync --locked --group dev
+
+      - name: Start PostgreSQL
+        run: |
+          docker run -d --name postgres -p 5432:5432 \
+            -e POSTGRES_DB=app \
+            -e POSTGRES_USER=app \
+            -e POSTGRES_PASSWORD=app \
+            -e POSTGRES_HOST_AUTH_METHOD=trust \
+            postgres:18-alpine
+
+      - name: Wait for PostgreSQL
+        run: |
+          for i in {1..30}; do
+            nc -z localhost 5432 2>/dev/null && break
+            echo "Waiting... $i/30"
+            sleep 2
+          done
+
+      - name: Run tests
+        run: uv run pytest tests
