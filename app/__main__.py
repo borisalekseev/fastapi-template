@@ -5,7 +5,7 @@ from dishka.integrations.fastapi import setup_dishka
 from fastapi import FastAPI
 
 from app.config import Config
-from app.infrastructure.ioc import InfraProvider
+from app.ioc import InfraProvider
 from app.presentation import healthchecks
 from app.presentation.exception_handlers import EXCEPTION_HANDLERS
 
